@@ -148,7 +148,7 @@ html,body{height:100%;background:var(--bg3);font-family:var(--font);color:var(--
       <span class="filter-chip" data-f="Caution" onclick="setFilter(this,'Caution')">Caution</span>
       <span class="filter-chip" data-f="Not Suitable" onclick="setFilter(this,'Not Suitable')">Not suitable</span>
     </div>
-    <div class="search-wrap"><input type="search" id="equipSearch" placeholder="Search equipment..." oninput="renderEquip()"></div>
+    <div class="search-wrap"><input type="search" id="equipSearch" placeholder="Search equipment..." oninput="renderEquip();logSearchDebounced('equipment',this.value)"></div>
     <div class="summary-strip" id="equipSummary"></div>
     <div class="item-list" id="equipList"></div>
   </div>
@@ -159,7 +159,7 @@ html,body{height:100%;background:var(--bg3);font-family:var(--font);color:var(--
       <span class="filter-chip" data-f="Caution" onclick="setFilterT(this,'Caution')">Caution</span>
       <span class="filter-chip" data-f="Not Suitable" onclick="setFilterT(this,'Not Suitable')">Not suitable</span>
     </div>
-    <div class="search-wrap"><input type="search" id="taskSearch" placeholder="Search tasks..." oninput="renderTasks()"></div>
+    <div class="search-wrap"><input type="search" id="taskSearch" placeholder="Search tasks..." oninput="renderTasks();logSearchDebounced('tasks',this.value)"></div>
     <div class="summary-strip" id="taskSummary"></div>
     <div class="item-list" id="taskList"></div>
   </div>
@@ -655,21 +655,44 @@ function renderProfile(){
   document.getElementById("profileContent").innerHTML='<div class="profile-card"><div class="profile-name">'+currentWorker+'</div><div class="profile-sub">'+wr.injury+' injury &middot; '+wr.side+' side</div><div class="profile-notes">'+wr.notes+'</div><div class="profile-grid"><div class="pstat"><div class="pstat-label">Solo lift max</div><div class="pstat-value">'+wr.soloMax+' kg</div></div><div class="pstat"><div class="pstat-label">2-person max</div><div class="pstat-value">'+wr.twoMax+' kg</div></div><div class="pstat"><div class="pstat-label">Mech trigger</div><div class="pstat-value">'+wr.mechThresh+' kg</div></div><div class="pstat"><div class="pstat-label">Avoid mechanism</div><div class="pstat-value">'+(wr.avoidMechanism||"None")+'</div></div></div>'+(avoidList.length?'<div class="section-label">Avoid postures</div><div class="pill-row">'+avoidList.map(a=>'<span class="pill pill-avoid">'+a+'</span>').join("")+'</div>':'')+(regionList.length?'<div class="section-label">Affected regions</div><div class="pill-row">'+regionList.map(r=>'<span class="pill pill-region">'+r+'</span>').join("")+'</div>':'')+(wr.avoidMechanism?'<div class="section-label">Avoid mechanism</div><div class="pill-row"><span class="pill pill-mech">'+wr.avoidMechanism+'</span></div>':'')+'</div>';
 }
 
-function toggleEquip(name){openEquip=openEquip===name?null:name;renderEquip();}
-function toggleTask(name){openTask=openTask===name?null:name;renderTasks();}
+function toggleEquip(name){
+  const opening = openEquip !== name;
+  openEquip=openEquip===name?null:name;
+  renderEquip();
+  if(opening) logEvent("view-equipment", currentWorker+" | "+name);
+}
+function toggleTask(name){
+  const opening = openTask !== name;
+  openTask=openTask===name?null:name;
+  renderTasks();
+  if(opening) logEvent("view-task", currentWorker+" | "+name);
+}
 function selectWorker(){currentWorker=document.getElementById("workerSel").value;openEquip=null;openTask=null;renderEquip();renderTasks();renderProfile();logEvent("view-worker",currentWorker);}
 
 function setFilter(el,f){
   equipFilter=f;openEquip=null;
   document.querySelectorAll("#pane-equip .filter-chip").forEach(c=>{c.className="filter-chip";if(c.dataset.f===f){if(f==="All")c.classList.add("f-all");else if(f==="Suitable")c.classList.add("f-s");else if(f==="Caution")c.classList.add("f-c");else c.classList.add("f-n");}});
   renderEquip();
+  logEvent("filter-equipment", currentWorker+" | "+f);
 }
 function setFilterT(el,f){
   taskFilter=f;openTask=null;
   document.querySelectorAll("#pane-tasks .filter-chip").forEach(c=>{c.className="filter-chip";if(c.dataset.f===f){if(f==="All")c.classList.add("f-all");else if(f==="Suitable")c.classList.add("f-s");else if(f==="Caution")c.classList.add("f-c");else c.classList.add("f-n");}});
   renderTasks();
+  logEvent("filter-tasks", currentWorker+" | "+f);
 }
-function switchTab(tab){["equip","tasks","profile"].forEach(t=>{document.getElementById("pane-"+t).style.display=t===tab?"block":"none";document.getElementById("tab-"+t).classList.toggle("active",t===tab);});}
+function switchTab(tab){
+  ["equip","tasks","profile"].forEach(t=>{document.getElementById("pane-"+t).style.display=t===tab?"block":"none";document.getElementById("tab-"+t).classList.toggle("active",t===tab);});
+  logEvent("switch-tab", currentWorker+" | "+tab);
+}
+
+let searchDebounceTimer = null;
+function logSearchDebounced(context, term){
+  if(searchDebounceTimer) clearTimeout(searchDebounceTimer);
+  searchDebounceTimer = setTimeout(()=>{
+    if(term && term.trim().length > 0) logEvent("search-"+context, currentWorker+" | \""+term.trim()+"\"");
+  }, 800);
+}
 
 let deferredPrompt=null;
 window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredPrompt=e;document.getElementById("installBanner").style.display="flex";});
