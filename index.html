@@ -66,9 +66,51 @@ html,body{height:100%;background:var(--bg3);font-family:var(--font);color:var(--
 .install-banner{display:none;align-items:center;gap:10px;padding:10px 14px;background:#E6F1FB;border-bottom:0.5px solid #B5D4F4;font-size:13px;color:#185FA5;}
 .install-banner button{margin-left:auto;padding:5px 14px;border-radius:20px;border:0.5px solid #185FA5;background:none;color:#185FA5;font-size:12px;font-weight:600;cursor:pointer;}
 .install-banner .close-btn{background:none;border:none;font-size:18px;color:#185FA5;cursor:pointer;padding:0;margin:0;}
+.login-screen{position:fixed;inset:0;background:var(--bg3);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;z-index:100;}
+.login-card{width:100%;max-width:380px;}
+.login-title{font-size:20px;font-weight:600;text-align:center;margin-bottom:4px;}
+.login-sub{font-size:13px;color:var(--text2);text-align:center;margin-bottom:28px;}
+.user-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px;}
+.user-card{background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius-lg);padding:18px 12px;text-align:center;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:all 0.15s;}
+.user-card:active{transform:scale(0.97);background:var(--bg2);}
+.user-icon{width:40px;height:40px;border-radius:50%;background:var(--bg2);display:flex;align-items:center;justify-content:center;margin:0 auto 8px;font-size:16px;font-weight:600;color:var(--text2);}
+.user-label{font-size:14px;font-weight:500;}
+.pin-section{margin-top:8px;}
+.pin-user-label{font-size:15px;font-weight:600;text-align:center;margin-bottom:4px;}
+.pin-label{font-size:12px;color:var(--text2);text-align:center;margin-bottom:20px;}
+.pin-dots{display:flex;justify-content:center;gap:14px;margin-bottom:24px;}
+.pin-dot{width:14px;height:14px;border-radius:50%;border:1.5px solid var(--border2);background:var(--bg);}
+.pin-dot.filled{background:var(--text);border-color:var(--text);}
+.pin-pad{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;max-width:260px;margin:0 auto;}
+.pin-key{aspect-ratio:1;border-radius:50%;border:0.5px solid var(--border2);background:var(--bg);font-size:20px;font-weight:500;color:var(--text);cursor:pointer;-webkit-tap-highlight-color:transparent;display:flex;align-items:center;justify-content:center;}
+.pin-key:active{background:var(--bg2);}
+.pin-key.empty{visibility:hidden;border:none;}
+.pin-error{font-size:12px;color:#A32D2D;text-align:center;margin-top:14px;min-height:16px;}
+.login-back{display:block;margin:18px auto 0;font-size:13px;color:var(--text2);background:none;border:none;cursor:pointer;text-align:center;text-decoration:underline;}
+.profile-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;background:var(--bg2);border:0.5px solid var(--border);font-size:12px;font-weight:500;color:var(--text2);cursor:pointer;margin-top:8px;-webkit-tap-highlight-color:transparent;}
+.profile-pill .dot{width:6px;height:6px;border-radius:50%;background:#639922;}
 </style>
 </head>
 <body>
+<div class="login-screen" id="loginScreen">
+  <div class="login-card" id="loginCardUsers">
+    <div class="login-title">Who's using the app?</div>
+    <div class="login-sub">Select your name to continue</div>
+    <div class="user-grid" id="userGrid"></div>
+  </div>
+  <div class="login-card" id="loginCardPin" style="display:none">
+    <div class="pin-section">
+      <div class="pin-user-label" id="pinUserLabel"></div>
+      <div class="pin-label">Enter your 4-digit PIN</div>
+      <div class="pin-dots" id="pinDots">
+        <span class="pin-dot"></span><span class="pin-dot"></span><span class="pin-dot"></span><span class="pin-dot"></span>
+      </div>
+      <div class="pin-pad" id="pinPad"></div>
+      <div class="pin-error" id="pinError"></div>
+      <button class="login-back" onclick="backToUserSelect()">&larr; Choose a different user</button>
+    </div>
+  </div>
+</div>
 <div class="app">
   <div id="installBanner" class="install-banner">
     <i class="ti ti-download" style="font-size:18px;flex-shrink:0" aria-hidden="true"></i>
@@ -83,6 +125,7 @@ html,body{height:100%;background:var(--bg3);font-family:var(--font);color:var(--
       <option value="Worker B">Worker B &mdash; Foot (Dominant)</option>
       <option value="Worker C">Worker C &mdash; Elbow (Dominant)</option>
     </select>
+    <div class="profile-pill" id="profilePill" onclick="showSwitchUserConfirm()"><span class="dot"></span><span id="profilePillLabel">&nbsp;</span></div>
   </div>
   <div class="tab-bar">
     <button class="tab active" id="tab-equip" onclick="switchTab('equip')">Equipment</button>
@@ -116,6 +159,122 @@ html,body{height:100%;background:var(--bg3);font-family:var(--font);color:var(--
   </div>
 </div>
 <script>
+// ===== AUTH / LOGGING CONFIG =====
+const SHEET_LOG_URL = "https://script.google.com/macros/s/AKfycbz7xaqhcs7-fCBHgFCZJtLafv84Fox011f5P0ivVbCaldaG_hq4pouuh_StLcfjIAEm9Q/exec";
+const USERS = {
+  "Supervisor": {pin:"1111", initial:"SU"},
+  "Manager":    {pin:"2222", initial:"MA"},
+  "Developer":  {pin:"3333", initial:"DE"},
+  "Admin":      {pin:"4444", initial:"AD"}
+};
+let pendingUser = null;
+let pinEntry = "";
+let currentUser = null;
+
+function logEvent(action, workerName){
+  if(!SHEET_LOG_URL || !currentUser) return;
+  try{
+    fetch(SHEET_LOG_URL, {
+      method:"POST",
+      mode:"no-cors",
+      headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body: JSON.stringify({user:currentUser, worker: workerName || "", action: action})
+    }).catch(()=>{});
+  }catch(e){}
+}
+
+function renderUserGrid(){
+  const grid = document.getElementById("userGrid");
+  grid.innerHTML = Object.keys(USERS).map(name=>{
+    const u = USERS[name];
+    return '<div class="user-card" onclick="selectUserCard(\''+name+'\')"><div class="user-icon">'+u.initial+'</div><div class="user-label">'+name+'</div></div>';
+  }).join("");
+}
+
+function selectUserCard(name){
+  pendingUser = name;
+  pinEntry = "";
+  document.getElementById("pinUserLabel").textContent = name;
+  document.getElementById("pinError").textContent = "";
+  renderPinDots();
+  renderPinPad();
+  document.getElementById("loginCardUsers").style.display = "none";
+  document.getElementById("loginCardPin").style.display = "block";
+}
+
+function backToUserSelect(){
+  pendingUser = null;
+  pinEntry = "";
+  document.getElementById("loginCardUsers").style.display = "block";
+  document.getElementById("loginCardPin").style.display = "none";
+}
+
+function renderPinDots(){
+  const dots = document.querySelectorAll("#pinDots .pin-dot");
+  dots.forEach((d,i)=>d.classList.toggle("filled", i < pinEntry.length));
+}
+
+function renderPinPad(){
+  const keys = ["1","2","3","4","5","6","7","8","9","","0","del"];
+  document.getElementById("pinPad").innerHTML = keys.map(k=>{
+    if(k==="") return '<div class="pin-key empty"></div>';
+    if(k==="del") return '<div class="pin-key" onclick="pinDelete()"><i class="ti ti-backspace" aria-hidden="true"></i></div>';
+    return '<div class="pin-key" onclick="pinPress(\''+k+'\')">'+k+'</div>';
+  }).join("");
+}
+
+function pinPress(d){
+  if(pinEntry.length >= 4) return;
+  pinEntry += d;
+  renderPinDots();
+  if(pinEntry.length === 4){
+    setTimeout(checkPin, 150);
+  }
+}
+function pinDelete(){
+  pinEntry = pinEntry.slice(0,-1);
+  renderPinDots();
+}
+
+function checkPin(){
+  const u = USERS[pendingUser];
+  if(u && u.pin === pinEntry){
+    currentUser = pendingUser;
+    try{ localStorage.setItem("rtw_user", currentUser); }catch(e){}
+    document.getElementById("loginScreen").style.display = "none";
+    document.getElementById("profilePillLabel").textContent = currentUser;
+    logEvent("login", document.getElementById("workerSel") ? document.getElementById("workerSel").value : "");
+  } else {
+    document.getElementById("pinError").textContent = "Incorrect PIN. Try again.";
+    pinEntry = "";
+    renderPinDots();
+  }
+}
+
+function showSwitchUserConfirm(){
+  if(confirm("Switch to a different user?")){
+    currentUser = null;
+    try{ localStorage.removeItem("rtw_user"); }catch(e){}
+    pendingUser = null; pinEntry = "";
+    document.getElementById("loginScreen").style.display = "flex";
+    document.getElementById("loginCardUsers").style.display = "block";
+    document.getElementById("loginCardPin").style.display = "none";
+    renderUserGrid();
+  }
+}
+
+function initAuth(){
+  renderUserGrid();
+  let saved = null;
+  try{ saved = localStorage.getItem("rtw_user"); }catch(e){}
+  if(saved && USERS[saved]){
+    currentUser = saved;
+    document.getElementById("loginScreen").style.display = "none";
+    document.getElementById("profilePillLabel").textContent = currentUser;
+    logEvent("session-resume", document.getElementById("workerSel") ? document.getElementById("workerSel").value : "");
+  }
+}
+
 const WORKERS={"Worker A":{injury:"Shoulder",side:"Non-Dominant",notes:"Shoulder bicep reco",soloMax:2,twoMax:4,mechThresh:5,avoid:{overhead:true,kneeling:false,pushing:true,pulling:true,standing:false,sitting:false,walking:false,repetitive:true},avoidMechanism:"Lift",regions:{shoulder:true,elbow:false,wrist:false,back:false,hip:false,knee:false,ankle:false,neck:false}},"Worker B":{injury:"Foot",side:"Dominant",notes:"Foot surgery",soloMax:0,twoMax:0,mechThresh:1,avoid:{overhead:true,kneeling:true,pushing:true,pulling:true,standing:true,sitting:false,walking:true,repetitive:true},avoidMechanism:"Carry",regions:{shoulder:false,elbow:false,wrist:false,back:false,hip:false,knee:false,ankle:true,neck:false}},"Worker C":{injury:"Elbow",side:"Dominant",notes:"Bicep injury",soloMax:20,twoMax:40,mechThresh:41,avoid:{overhead:false,kneeling:false,pushing:false,pulling:false,standing:false,sitting:false,walking:false,repetitive:false},avoidMechanism:"",regions:{shoulder:true,elbow:true,wrist:false,back:false,hip:false,knee:false,ankle:false,neck:false}}};
 // 163 items
 const EQUIP = [
@@ -489,7 +648,7 @@ function renderProfile(){
 
 function toggleEquip(name){openEquip=openEquip===name?null:name;renderEquip();}
 function toggleTask(name){openTask=openTask===name?null:name;renderTasks();}
-function selectWorker(){currentWorker=document.getElementById("workerSel").value;openEquip=null;openTask=null;renderEquip();renderTasks();renderProfile();}
+function selectWorker(){currentWorker=document.getElementById("workerSel").value;openEquip=null;openTask=null;renderEquip();renderTasks();renderProfile();logEvent("view-worker",currentWorker);}
 
 function setFilter(el,f){
   equipFilter=f;openEquip=null;
@@ -508,6 +667,7 @@ window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredPro
 function installApp(){if(deferredPrompt){deferredPrompt.prompt();deferredPrompt.then(()=>{deferredPrompt=null;document.getElementById("installBanner").style.display="none";});}}
 
 renderEquip();renderTasks();renderProfile();
+initAuth();
 
 </script>
 </body>
