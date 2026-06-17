@@ -455,7 +455,7 @@ function renderEquip(){
     const wt=r.item.weight>0?r.item.weight+" kg":"Weight TBC";
     const sLabel=r.res.status==="Not Suitable"?"Not suitable":r.res.status;
     const key=r.item.name.replace(/'/g,"\'");
-    return'<div class="item-card"><div class="item-header" onclick="toggleEquip(''+key+'')"><span class="status-dot dot-'+sc(r.res.status)+'"></span><div style="flex:1"><div class="item-name">'+r.item.name+'</div><div class="item-meta">'+wt+' &middot; '+r.res.lift+'</div></div><span class="badge badge-'+sc(r.res.status)+'">'+sLabel+'</span><i class="ti ti-chevron-down chevron'+(isOpen?" open":"")+'" aria-hidden="true"></i></div>'+(isOpen?'<div class="item-body"><p class="advisory">'+(r.res.advisory||"No additional controls required.")+'</p></div>':'')+'</div>';
+    return'<div class="item-card"><div class="item-header" onclick="toggleEquip(\''+key+'\')"><span class="status-dot dot-'+sc(r.res.status)+'"></span><div style="flex:1"><div class="item-name">'+r.item.name+'</div><div class="item-meta">'+wt+' &middot; '+r.res.lift+'</div></div><span class="badge badge-'+sc(r.res.status)+'">'+sLabel+'</span><i class="ti ti-chevron-down chevron'+(isOpen?" open":"")+'" aria-hidden="true"></i></div>'+(isOpen?'<div class="item-body"><p class="advisory">'+(r.res.advisory||"No additional controls required.")+'</p></div>':'')+'</div>';
   }).join("");
 }
 
@@ -476,7 +476,7 @@ function renderTasks(){
     const wt=r.task.weight>0?r.task.weight+" kg":"No lift required";
     const sLabel=r.res.status==="Not Suitable"?"Not suitable":r.res.status;
     const key=r.task.name.replace(/'/g,"\'");
-    return'<div class="item-card"><div class="item-header" onclick="toggleTask(''+key+'')"><span class="status-dot dot-'+sc(r.res.status)+'"></span><div style="flex:1"><div class="item-name">'+r.task.name+'</div><div class="item-meta">'+wt+' &middot; '+r.res.lift+'</div></div><span class="badge badge-'+sc(r.res.status)+'">'+sLabel+'</span><i class="ti ti-chevron-down chevron'+(isOpen?" open":"")+'" aria-hidden="true"></i></div>'+(isOpen?'<div class="item-body"><p class="advisory">'+(r.res.advisory||"No additional controls required.")+'</p></div>':'')+'</div>';
+    return'<div class="item-card"><div class="item-header" onclick="toggleTask(\''+key+'\')"><span class="status-dot dot-'+sc(r.res.status)+'"></span><div style="flex:1"><div class="item-name">'+r.task.name+'</div><div class="item-meta">'+wt+' &middot; '+r.res.lift+'</div></div><span class="badge badge-'+sc(r.res.status)+'">'+sLabel+'</span><i class="ti ti-chevron-down chevron'+(isOpen?" open":"")+'" aria-hidden="true"></i></div>'+(isOpen?'<div class="item-body"><p class="advisory">'+(r.res.advisory||"No additional controls required.")+'</p></div>':'')+'</div>';
   }).join("");
 }
 
